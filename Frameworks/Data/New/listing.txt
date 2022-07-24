@@ -1,0 +1,21 @@
+ Volume in drive E is New Volume
+ Volume Serial Number is ACAE-FC28
+
+ Directory of E:\MB\ManTide-Win\Frameworks\Data
+
+AORD.csv
+BSE.csv
+DJI.csv
+FCHIX.csv
+FTSE.csv
+GDAXI.csv
+GSPC.csv
+HSI.csv
+KS11.csv
+KSLE.csv
+PSEI.csv
+SGX_NK225.csv
+TWII.csv
+^N225.csv
+^NSEI.csv
+

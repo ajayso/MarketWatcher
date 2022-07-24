@@ -1,0 +1,403 @@
+#Importing dependencies 
+import pandas as pd
+import numpy as np
+import talib as ta
+import math
+import matplotlib.pyplot as plt
+import yfinance as yf
+from rutils.YahooData import Puller
+
+plt.rcParams["figure.figsize"] = (20,10) #change this if you want to reduce the plot images
+import locale
+from locale import atof
+locale.setlocale(locale.LC_NUMERIC, '') 
+
+#Quandl dependency with API key
+import quandl
+quandl.ApiConfig.api_key = "RB48Rib76iwBPxtzeVs2"
+
+class CommodityAnalyzer:
+    def __init__(self, dataframe):
+        #sets "data" as the imported dataframe
+        self.data = dataframe
+
+    
+    def rename_conflict_column_name(self, name, df):
+        df = df.rename(columns={"Open": name + "Open", "High": name + "High", "Low": name + "Low", "Close": name + "Close","Total Traded Quantity": name + "Total Traded Quantity","Turnover (Lacs)": name + "Turnover (Lacs)"} )
+        return (df)
+    #Method to return Commodity Indicators against a OHLC of a company...
+    #Acceptable Indicators : Crude Oil , Brent Crude, Silver,Gold,Aluminium,Natural Gas and Gasoline.
+    #Can add more indicators if followed the same if block code structure.
+    def getCommodityIndicators(self,indicator,plot=True,xmin=None, xmax=None, ymin=None, ymax=None):
+        
+        #Conditions to check type of passed arguments
+        if(xmin != None):
+            if(type(xmin)!=str):
+                raise ValueError("X parameters must be of type -> str")
+        
+        if(xmax != None):
+            if(type(xmax)!=str):
+                raise ValueError("X parameters must be of type -> str")
+                
+        if(ymin != None):
+            if(not isinstance(ymin, (int, float))):
+                raise ValueError("Y parameters must be of type -> Int or Float")
+                                 
+        if(ymax != None):
+            if(not isinstance(ymax, (int,float))):
+                raise ValueError("Y parameters must be of type -> Int or Float")
+        
+        pull = Puller("Y")        
+        #CRUDE OIL
+        if(indicator == 'Crude Oil'):
+            #crudeoil = quandl.get("BP/CRUDE_OIL_PRICES") #Quandl Get query.Replace by pd.read_csv if have existing dataset.
+            #NSE/OIL
+            crudeoil = yf.download('CL=F')
+            indicator = indicator.replace(" ", "")
+            crudeoil = crudeoil.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            #crudeoil = quandl.get("OPEC/ORB")
+            #crudeoil = pd.DataFrame(crudeoil, columns = ["Index Value"])
+            crudeoil_df = crudeoil.join(self.data,how='inner')#inner join with the dataframe
+            crudeoil_df = crudeoil_df.dropna(axis=0)#dropping NaNs
+            crudeoil_df_corr = crudeoil_df.corr()#Correlation Matrix
+            if(plot==True):
+                crudeoil_df.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return crudeoil_df_corr.style.background_gradient(cmap='coolwarm'),crudeoil_df,crudeoil_df.describe()
+            else:
+                return crudeoil_df_corr.style.background_gradient(cmap='coolwarm'),crudeoil_df,crudeoil_df.describe()
+            
+        elif(indicator == 'Brent Crude'):
+            # BRNT.L
+            Bcrudeoil = yf.download("BZ=F")
+            indicator = indicator.replace(" ", "")
+            Bcrudeoil = Bcrudeoil.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            #Bcrudeoil = pd.DataFrame(Bcrudeoil, columns = ["Index Value"])
+            Bcrudeoil_df = Bcrudeoil.join(self.data,how='inner')
+            Bcrudeoil_df = Bcrudeoil_df.dropna(axis=0)
+            Bcrudeoil_df_corr = Bcrudeoil_df.corr()
+            if(plot==True):
+                Bcrudeoil_df.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return Bcrudeoil_df_corr.style.background_gradient(cmap='coolwarm'),Bcrudeoil_df,Bcrudeoil_df.describe()
+            else:
+                return Bcrudeoil_df_corr.style.background_gradient(cmap='coolwarm'),Bcrudeoil_df,Bcrudeoil_df.describe()
+            
+        elif(indicator == 'Natural Gas'):
+            #NG=F
+            naturalgas = yf.download("NG=F")
+            indicator = indicator.replace(" ", "")
+
+           
+            #renaming columns to remove ambiguous columns.
+            naturalgas = naturalgas.rename(columns={'Low':"Gas_Low","High":"Gas_High","Open":"Gas_Open",
+                                                "Close":"Gas_Close","Last":"Gas_Last","Volume":"Gas_Volume"})
+            naturalgas_df = naturalgas.join(self.data,how='inner')
+            naturalgas_df = naturalgas_df.dropna(axis=0)
+            naturalgas_df_corr = naturalgas_df.corr()
+            if(plot==True):
+                naturalgas_df.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return naturalgas_df_corr.style.background_gradient(cmap='coolwarm'),naturalgas_df,naturalgas_df.describe()
+            else:
+                return naturalgas_df_corr.style.background_gradient(cmap='coolwarm'),naturalgas_df,naturalgas_df.describe()
+            
+        elif(indicator == 'Gasoline'):
+            #RB=F
+            fredcurs =yf.download("RB=F")
+            indicator = indicator.replace(" ", "")
+            fredcurs = fredcurs.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            #fredcurs = pd.DataFrame(fredcurs, columns = ["Index Value"])
+            fredcurs_df = fredcurs.join(self.data,how='inner')
+            fredcurs_df = fredcurs_df.dropna(axis=0)
+            fredcurs_df_corr = fredcurs_df.corr()
+            if(plot==True):
+                fredcurs_df.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return fredcurs_df_corr.style.background_gradient(cmap='coolwarm'),fredcurs_df,fredcurs_df.describe()
+            else:
+                return fredcurs_df_corr.style.background_gradient(cmap='coolwarm'),fredcurs_df,fredcurs_df.describe()
+            
+        elif(indicator == 'Gold'):
+            gold = yf.download("GC=F")
+            indicator = indicator.replace(" ", "")
+            gold = gold.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            gold_df = gold.join(self.data,how='inner')
+            gold_df= gold_df.dropna(axis=0)
+            gold_df_corr = gold_df.corr()
+            if(plot==True):
+                gold_df.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return gold_df_corr.style.background_gradient(cmap='coolwarm'),gold_df,gold_df.describe()
+            else:
+                return gold_df_corr.style.background_gradient(cmap='coolwarm'),gold_df,gold_df.describe()
+        
+        elif(indicator == 'Silver'):
+            #SI=F
+            silver = yf.download("SI=F")
+            indicator = indicator.replace(" ", "")
+            silver = silver.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            silver_df = silver.join(self.data,how='inner')
+            silver_df= silver_df.dropna(axis=0)
+            silver_df_corr = silver_df.corr()
+            if(plot == True):
+                silver_df.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return silver_df_corr.style.background_gradient(cmap='coolwarm'),silver_df,silver_df.describe()
+            else:
+                return silver_df_corr.style.background_gradient(cmap='coolwarm'),silver_df,silver_df.describe()
+            
+        elif(indicator == 'Aluminium'):
+            al = yf.download("ALI=F")
+            indicator = indicator.replace(" ", "")
+
+            al = al.rename(columns={'Low':"Al_Low","High":"Al_High","Open":"Al_Open",
+                                                "Close":"Al_Close","Last":"Al_Last","Volume":"Al_Volume"})
+            al_df = al.join(self.data,how='inner')
+            al_df = al_df.dropna(axis=0)
+            al_df_corr = al_df.corr()
+            if(plot==True):
+                al_df.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return al_df_corr.style.background_gradient(cmap='coolwarm'),al_df,al_df.describe()
+            else:
+                return al_df_corr.style.background_gradient(cmap='coolwarm'),al_df,al_df.describe()
+        
+        elif(indicator == 'Platinum'):
+            platdf = yf.download("PL=F")
+
+            indicator = indicator.replace(" ", "")
+            platdf = platdf.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+
+
+            platdf = platdf.join(self.data,how='inner')
+            platdf = platdf.dropna(axis=0)
+            platdf_corr = platdf.corr()
+            if(plot==True):
+                platdf.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return platdf.corr().style.background_gradient(cmap='coolwarm'),platdf,platdf.describe()
+            else:
+                return platdf.corr().style.background_gradient(cmap='coolwarm'),platdf,platdf.describe()
+        
+        elif(indicator =='Palladium'):
+            pldm = yf.download("PA=F")
+            indicator = indicator.replace(" ", "")
+
+            indicator = indicator.replace(" ", "")
+            pldm = pldm.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            pldm = pldm.join(self.data,how='inner')
+            pldm = pldm.dropna(axis=0)
+            if(plot ==True):
+                pldm.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return pldm.corr().style.background_gradient(cmap='coolwarm'),pldm,pldm.describe()
+            else:
+                return pldm.corr().style.background_gradient(cmap='coolwarm'),pldm,pldm.describe()
+            
+        elif(indicator == 'Copper'):
+            copp = yf.download("HG=F")
+            indicator = indicator.replace(" ", "")
+            copp = copp.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            copp = copp.join(self.data,how='inner')
+            copp = copp.dropna(axis=0)
+            if(plot == True):
+                copp.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return copp.corr().style.background_gradient(cmap='coolwarm'),copp,copp.describe()
+            else:
+                return copp.corr().style.background_gradient(cmap='coolwarm'),copp,copp.describe()
+        
+        elif(indicator == 'Lead'):
+            ld = yf.download("^NQCIPBTR")
+            ld = ld.rename(columns={"Open":"Ld_Open","High":"Ld_High","Low":"Ld_Low",
+                                       "Close":"Ld_Close","Volume":"Ld_Volume"})
+            ld = ld.join(self.data,how="inner")
+            ld = ld.dropna(axis=0)
+            if(plot==True):
+                ld.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return ld.corr().style.background_gradient(cmap='coolwarm'),ld,ld.describe()
+            else:
+                return ld.corr().style.background_gradient(cmap='coolwarm'),ld,ld.describe()
+            
+        elif(indicator == 'Iridium'):
+            ird = quandl.get("JOHNMATT/IRID")
+            ird = ird.join(self.data,how='inner')
+            ird = ird.dropna(axis=0)
+            if(plot == True):
+                ird.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return ird.corr().style.background_gradient(cmap='coolwarm'),ird,ird.describe()
+            else:
+                return ird.corr().style.background_gradient(cmap='coolwarm'),ird,ird.describe()
+        
+        elif(indicator == 'Rhodium'):
+            rhod = yf.download("XRH0.L")
+            indicator = indicator.replace(" ", "")
+            rhod = rhod.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            rhod = rhod.join(self.data,how='inner')
+            rhod = rhod.dropna(axis=0)
+            if(plot == True):
+                rhod.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return rhod.corr().style.background_gradient(cmap='coolwarm'),rhod,rhod.describe()
+            else:
+                return rhod.corr().style.background_gradient(cmap='coolwarm'),rhod,rhod.describe()
+        
+        elif(indicator == 'Tin'):
+            tin = yf.download("^NQCISNTR")
+            indicator = indicator.replace(" ", "")
+            tin = tin.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            tin = tin.join(self.data,how='inner')
+            tin = tin.dropna(axis=0)
+            if(plot==True):
+                tin.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return tin.corr().style.background_gradient(cmap='coolwarm'),tin,tin.describe()
+            else:
+                return tin.corr().style.background_gradient(cmap='coolwarm'),tin,tin.describe()
+            
+        elif(indicator == 'Zinc'):
+            zinc = yf.download("^NQCIZNTR")
+            indicator = indicator.replace(" ", "")
+            zinc = zinc.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            zinc = zinc.join(self.data,how='inner')
+            zinc = zinc.dropna(axis=0)
+            if(plot== True):
+                zinc.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return zinc.corr().style.background_gradient(cmap='coolwarm'),zinc,zinc.describe()
+            else:
+                return zinc.corr().style.background_gradient(cmap='coolwarm'),zinc,zinc.describe()
+            
+        elif(indicator == 'Nickel'):
+            nick = yf.download("^NQCINIER")
+            indicator = indicator.replace(" ", "")
+            nick = nick.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            nick = nick.join(self.data, how='inner')
+            nick = nick.dropna(axis=0)
+            if(plot== True):
+                nick.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return nick.corr().style.background_gradient(cmap='coolwarm'),nick,nick.describe()
+            else:
+                return nick.corr().style.background_gradient(cmap='coolwarm'),nick,nick.describe()
+            
+        elif(indicator == 'Barley'):
+            barley = quandl.get("CHRIS/ASX_UB1")
+            barley = barley.join(self.data,how='inner')
+            barley = barley.dropna(axis=0)
+            if(plot == True):
+                barley.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return barley.corr().style.background_gradient(cmap='coolwarm'),barley,barley.describe()
+            else:
+                return barley.corr().style.background_gradient(cmap='coolwarm'),barley,barley.describe()
+            
+        elif(indicator == 'Corn'):
+            corn = yf.download("ZC=F")
+            indicator = indicator.replace(" ", "")
+            corn = corn.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            corn = corn.join(self.data,how='inner')
+            corn = corn.dropna(axis=0)
+            if(plot==True):
+                corn.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return corn.corr().style.background_gradient(cmap='coolwarm'),corn,corn.describe()
+            else:
+                return corn.corr().style.background_gradient(cmap='coolwarm'),corn,corn.describe()
+            
+        elif(indicator == 'Oats'):
+            oats = quandl.get("CHRIS/CME_O1")
+            oats = oats.rename(columns={"Open":"Oats_Open","High":"Oats_High","Low":"Oats_Low",
+                                       "Last":"Oats_Last","Close":"Oats_Close","Volume":"Oats_Volume"})
+            oats = oats.join(self.data,how="inner")
+            oats = oats.dropna(axis=0)
+            if(plot==True):
+                oats.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return oats.corr().style.background_gradient(cmap='coolwarm'),oats,oats.describe()
+            else:
+                return oats.corr().style.background_gradient(cmap='coolwarm'),oats,oats.describe()
+            
+        elif(indicator == 'Rice'):
+            rice = yf.download("ZR=F")
+            rice = rice.rename(columns={"Open":"Rice_Open","High":"Rice_High","Low":"Rice_Low",
+                                       "Last":"Rice_Last","Close":"Rice_Close","Volume":"Rice_Volume"})
+            rice = rice.join(self.data,how='inner')
+            rice = rice.dropna(axis=0)
+            if(plot==True):
+                rice.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return rice.corr().style.background_gradient(cmap='coolwarm'),rice,rice.describe()
+            else:
+                return rice.corr().style.background_gradient(cmap='coolwarm'),rice,rice.describe()
+            
+        elif(indicator == 'Soyabeans'):
+            soya = quandl.get("CHRIS/CME_SM1")
+            soya = soya.rename(columns={"Open":"Soya_Open","High":"Soya_High","Low":"Soya_Low",
+                                       "Last":"Soya_Last","Close":"Soya_Close","Volume":"Soya_Volume"})
+            soya = soya.join(self.data,how='inner')
+            soya = soya.dropna(axis=0)
+            if(plot==True):
+                soya.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return soya.corr().style.background_gradient(cmap='coolwarm'),soya,soya.describe()
+            else:
+                return soya.corr().style.background_gradient(cmap='coolwarm'),soya,soya.describe()
+        
+        elif(indicator == "Wheat"):
+            wheat = yf.download("ZW=F")
+            indicator = indicator.replace(" ", "")
+            wheat = wheat.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            wheat = wheat.join(self.data,how='inner')
+            wheat = wheat.dropna(axis=0)
+            if(plot==True):
+                wheat.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return wheat.corr().style.background_gradient(cmap='coolwarm'),wheat,wheat.describe()
+            else:
+                return wheat.corr().style.background_gradient(cmap='coolwarm'),wheat,wheat.describe()
+            
+        elif(indicator == 'Coal'):
+            coal = yf.download("MTF=F")
+            indicator = indicator.replace(" ", "")
+            coal = coal.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            coal = coal.join(self.data,how="inner")
+            coal = coal.dropna(axis=0)
+            if(plot==True):
+                coal.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return coal.corr().style.background_gradient(cmap='coolwarm'),coal,coal.describe()
+            else:
+                return coal.corr().style.background_gradient(cmap='coolwarm'),coal,coal.describe()
+            
+        elif(indicator == 'Coffee'):
+            coffee = yf.download("KC=F")
+            indicator = indicator.replace(" ", "")
+            coffee = coffee.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            coffee = coffee.join(self.data,how='inner')
+            coffee = coffee.dropna(axis=0)
+            if(plot == True):
+                coffee.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return coffee.corr().style.background_gradient(cmap='coolwarm'),coffee,coffee.describe()
+            else:
+                return coffee.corr().style.background_gradient(cmap='coolwarm'),coffee,coffee.describe()
+            
+        elif(indicator == 'Cocoa'):
+            cocoa = yf.download("CC=F")
+            indicator = indicator.replace(" ", "")
+            cocoa = cocoa.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            cocoa = cocoa.join(self.data,how='inner')
+            cocoa = cocoa.dropna(axis=0)
+            if(plot == True):
+                cocoa.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return cocoa.corr().style.background_gradient(cmap='coolwarm'),cocoa,cocoa.describe()
+            else:
+                return cocoa.corr().style.background_gradient(cmap='coolwarm'),cocoa,cocoa.describe()
+            
+        elif(indicator=='Sugar'):
+            sugar = yf.download("SB=F")
+            indicator = indicator.replace(" ", "")
+            sugar = sugar.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            sugar = sugar.join(self.data, how='inner')
+            sugar = sugar.dropna(axis=0)
+            if(plot==True):
+                sugar.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return sugar.corr().style.background_gradient(cmap='coolwarm'),sugar,sugar.describe()
+            else:
+                return sugar.corr().style.background_gradient(cmap='coolwarm'),sugar,sugar.describe()
+            
+        elif(indicator =='Cotton'):
+            cotton = yf.download("CT=F")
+            indicator = indicator.replace(" ", "")
+            cotton = cotton.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
+            cotton = cotton.join(self.data,how='inner')
+            cotton = cotton.dropna(axis=0)
+            if(plot==True):
+                cotton.plot(ylim=(ymin,ymax),xlim=(xmin,xmax))
+                return cotton.corr().style.background_gradient(cmap='coolwarm'),cotton,cotton.describe()
+            else:
+                return cotton.corr().style.background_gradient(cmap='coolwarm'),cotton,cotton.describe()
+       
+
+        else:
+            raise ValueError("Invalid Commodity Symbol-->",indicator)
