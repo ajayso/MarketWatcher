@@ -20,6 +20,7 @@ from tensorflow.keras.callbacks import CSVLogger
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.callbacks import LearningRateScheduler
+import sys
 
 #from DataProcessor import DataProcessor
 from sklearn.preprocessing import MinMaxScaler
@@ -78,9 +79,9 @@ class xModel:
                 self.script_code = script_code
                 earlystopping = EarlyStopping(
                 monitor=monitor, 
-                patience=0, 
-                min_delta=0, 
-                mode='auto'
+                patience=200, 
+                verbose=1, 
+                mode='min'
                 )
                 lr = LearningRateScheduler(lr_decay, verbose=1)
                 reduce_lr = ReduceLROnPlateau(
@@ -101,7 +102,7 @@ class xModel:
                         verbose=1
                 )
                 #self.callbacks = [earlystopping,lr,reduce_lr,csv_log,checkpoint]
-                self.callbacks = [reduce_lr]
+                self.callbacks = [earlystopping,reduce_lr]
                 
         def CNN(self,):
                 CNN = Sequential()
@@ -113,20 +114,23 @@ class xModel:
                 CNN.add(Flatten())
                 CNN.add(Dense(50, activation='relu'))
                 CNN.add(Dense(self.target))
-                CNN.compile(optimizer='adam', loss='mae')
+                CNN.compile(optimizer='adam', loss='mae',metrics=['accuracy'])
             
 
         def LSTM(self):
                 LSTM = Sequential()
                 LSTM.add(layers.Bidirectional(layers.LSTM(units = 200,input_shape=(self.lookback,self.features))))
                 LSTM.add(Dense(units=self.target , activation = 'relu'))
-                LSTM.compile(optimizer='adadelta',loss="mean_absolute_error")
+                LSTM.compile(optimizer='adadelta',loss="mean_absolute_error",metrics=['accuracy'])
                 self.model = LSTM
         
-        def train(self,X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc_predict,
-                epochs=500,batch_size=16, verbose=1
+        def train(self,X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,sc_predict,
+                epochs=500,batch_size=16, verbose=1,
+                lastbatch=None
                 ):
-                history = self.model.fit(X_train,Y_train,epochs=500,batch_size=16,verbose=1,
+                history = self.model.fit(X_train,Y_train,
+                validation_data=(X_test,Y_test),
+                epochs=500,batch_size=16,verbose=1,
                 callbacks=self.callbacks)
                 Model_Array[self.name]= self.model.evaluate(X_test,Y_test)
                 modelList.append(PersistModel(self.name,self.model))
@@ -138,8 +142,22 @@ class xModel:
                 print(original_data.shape)
                 print(self.targetfeatures)
                 dfPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
-               
                 dfPredicted.to_csv("{}-{}-Data.csv".format(self.script_code, self.name))
+
+                #Prediction of Last Batch
+                X_lastbatch=np.array(lastbatch)
+                X_lastbatch_scaled = sc.transform(X_lastbatch)
+                last_batch_predicted_data = self.model.predict(X_lastbatch_scaled)
+                print("Predictions------")
+                print(last_batch_predicted_data)
+                print(last_batch_predicted_data.shape)
+                original_data = sc_predict.inverse_transform(last_batch_predicted_data)
+                dfLastBatchPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
+                dfLastBatchPredicted.to_csv("{}-{}-Latest-Data.csv".format(self.script_code, self.name))
+
+
+
+
         
 
         
@@ -157,6 +175,7 @@ class ModelManager:
                 #data = DataProcessor(dataframe,Threshold,target,Corr_Thresh)
                 print("Data shape {}".format(data.shape))
                 # Last Row specifics
+                
 
                 trainin_limit = split
                 training_upbound = split*data.shape[0]
@@ -169,6 +188,14 @@ class ModelManager:
 
                 lookback = timesteps
                 features = data.shape[1]
+                
+                lastiteration = data.tail(lookback)
+                print("last iteration testing")
+                totalrows = data.shape[0]
+                print(data.shape)
+                data = data[0:totalrows-lookback]
+                print(data.shape)
+
                 
                 Model_Array=dict()
                 modelList = []
@@ -211,10 +238,11 @@ class ModelManager:
                 print("Y_test shape=={}".format(Y_test.shape))
 
                 print("LSTM is being trained and tested now\n")
-                xmodel = xModel(script_code = scriptcode,lookback=lookback,features=features,target=target,monitor="loss",model_name="LSTM",targetfeatures=self.targetColumns)
+                xmodel = xModel(script_code = scriptcode,lookback=lookback,features=features,target=target,monitor="val_loss",model_name="LSTM",targetfeatures=self.targetColumns)
                 xmodel.LSTM()
-                xmodel.train(X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc_predict,
-                epochs=500,batch_size=16, verbose=1
+                xmodel.train(X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,sc_predict,
+                epochs=500,batch_size=16, verbose=1,
+                lastbatch=lastiteration
                 )
                         
                 
@@ -223,8 +251,9 @@ class ModelManager:
                 #CNN
                 xmodel.name="CNN"
                 xmodel.CNN()
-                xmodel.train(X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc_predict,
-                epochs=500,batch_size=16, verbose=1
+                xmodel.train(X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,sc_predict,
+                epochs=500,batch_size=16, verbose=1,
+                lastbatch=lastiteration
                 )
                 
                 def generator():
