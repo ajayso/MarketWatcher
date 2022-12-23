@@ -1,20 +1,13 @@
-# Imports
-#Importing dependencies 
+#Generic Imports
 import pandas as pd
 import numpy as np
-import talib as ta
 import math
-import matplotlib.pyplot as plt
-plt.rcParams["figure.figsize"] = (20,10) #change this if you want to reduce the plot images
 import locale
 from datetime import date
 from locale import atof
 locale.setlocale(locale.LC_NUMERIC, '') 
-#Quandl dependency with API key
-import quandl
 from nsepy import get_history
-quandl.ApiConfig.api_key = "V8v63CRpQLfH8YKfsAmu"
-api_key = "V8v63CRpQLfH8YKfsAmu"
+
 # Analyzer Imports
 import sys
 sys.path.insert(0,'\Frameworks/')
@@ -39,14 +32,17 @@ class Main:
                 self.split= split
                 self.timesteps=timesteps
                 self.scriptcode = scriptcode
-                quandl.ApiConfig.api_key = "V8v63CRpQLfH8YKfsAmu"
+
+                #quandl.ApiConfig.api_key = "V8v63CRpQLfH8YKfsAmu"
                 #df = quandl.get("NSE/" + scriptcode,api_key =api_key)
                 #data = get_history(symbol=scriptcode,
                 #   start=date(2007,1,1), 
                 #   end=date.today())
                 #data.to_csv(scriptcode + "--DataOriginal.csv")
                 #df = pd.read_csv(scriptcode + "--DataOriginal.csv")
-                df = quandl.get("BSE/" + scriptcode,  start_date="2010-07-01", end_date=date.today(),api_key =api_key)
+                print(date.today())
+ 
+                df = get_history(scriptcode,  start=date(2016,7,1), end= date.today())
                 df = df.rename(columns = {"No. of Shares": "Volume"})
                 df = df.rename(columns = {"Last": "Adj Close"})
                 df = df.dropna(axis=0)

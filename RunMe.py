@@ -35,9 +35,9 @@ split=0.8
 timesteps=7
 modelpath = os.getcwd() + "\Models" 
 p = Main(scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath)
-dataset = p.buildAnalyzers()
-dataset.to_csv(scriptcode + "Scrapped.csv")
+#dataset = p.buildAnalyzers()
+#dataset.to_csv(scriptcode + "Scrapped.csv")
 #print(dataset)
-p._buildModels()
+#p._buildModels()
 
 
