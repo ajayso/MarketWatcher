@@ -28,8 +28,12 @@ import yfinance as yf
 sys.path.insert(0,'\rutils/')
 from rutils.YahooData import Puller
 
-class Main:
+#Monitoring on NR 
+import newrelic.agent
+application = newrelic.agent.application()
 
+class Main:
+        @newrelic.agent.background_task(name='Main-init', group='Task')
         def __init__(self,scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath, index=0):
                 self.Threshold = Threshold
                 self.Corr_Thresh=Corr_Thresh
