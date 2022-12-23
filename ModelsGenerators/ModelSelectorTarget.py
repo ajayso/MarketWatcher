@@ -14,7 +14,12 @@ from tensorflow.keras.layers import Conv1D
 from tensorflow.keras.layers import MaxPooling1D
 from tensorflow.keras.layers import LeakyReLU
 from tensorflow.keras.models import model_from_json
+from tensorflow.keras.callbacks import EarlyStopping
 from logger import logger
+from tensorflow.keras.callbacks import CSVLogger
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ReduceLROnPlateau
+from tensorflow.keras.callbacks import LearningRateScheduler
 
 #from DataProcessor import DataProcessor
 from sklearn.preprocessing import MinMaxScaler
@@ -34,6 +39,11 @@ timesteps ---> lookback period ( Interger only )
 Returns String.
 
 """
+def lr_decay(epoch, lr):
+        if epoch != 0 and epoch % 5 == 0:
+                return lr * 0.2
+        return lr
+
 class PersistModel:
         def __init__(self,name,model):
                 self.name = name
@@ -54,19 +64,105 @@ class PersistModel:
                 loaded_model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
 
                
-                               
+                             
+class xModel:
+
+
+
+        def __init__(self,script_code,model_name, lookback,features, target,monitor,targetfeatures):
+                self.lookback = lookback
+                self.features = features
+                self.target = len(target)
+                self.name =model_name
+                self.targetfeatures = targetfeatures
+                self.script_code = script_code
+                earlystopping = EarlyStopping(
+                monitor=monitor, 
+                patience=0, 
+                min_delta=0, 
+                mode='auto'
+                )
+                lr = LearningRateScheduler(lr_decay, verbose=1)
+                reduce_lr = ReduceLROnPlateau(
+                        monitor=monitor, 
+                        factor=0.2,   
+                        patience=2, 
+                        min_lr=0.001,
+                        verbose=2
+                        )
+                csv_log = CSVLogger(model_name+ "results.csv")
                 
+
+                checkpoint_path = 'model_checkpoints/'
+                checkpoint = ModelCheckpoint(
+                        filepath=checkpoint_path,
+                        save_freq='epoch',
+                        save_weights_only=True,
+                        verbose=1
+                )
+                self.callbacks = [earlystopping,lr,reduce_lr,csv_log,checkpoint]
+                
+        def CNN(self,):
+                CNN = Sequential()
+                CNN.add(Conv1D(filters=128, kernel_size=2, activation='relu', input_shape=(self.lookback, self.features)))
+                CNN.add(Conv1D(filters=128,kernel_size=2,activation='relu'))
+                CNN.add(MaxPooling1D(2))
+                CNN.add(Conv1D(filters=128,kernel_size=1,activation='relu'))
+                CNN.add(Conv1D(filters=128,kernel_size=1,activation='relu'))
+                CNN.add(Flatten())
+                CNN.add(Dense(50, activation='relu'))
+                CNN.add(Dense(self.target))
+                CNN.compile(optimizer='adam', loss='mae')
+            
+
+        def LSTM(self):
+                LSTM = Sequential()
+                LSTM.add(layers.LSTM(units = 200,input_shape=(self.lookback,self.features)))
+                LSTM.add(Dense(units=self.target , activation = 'relu'))
+                LSTM.compile(optimizer='adadelta',loss="mean_absolute_error")
+                self.model = LSTM
+        
+        def train(self,X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc_predict,
+                epochs=500,batch_size=16, verbose=1
+                ):
+                history = self.model.fit(X_train,Y_train,epochs=500,batch_size=16,verbose=1,
+                callbacks=self.callbacks)
+                Model_Array[self.name]= self.model.evaluate(X_test,Y_test)
+                modelList.append(PersistModel(self.name,self.model))
+                predicted_LSTM = self.model.predict(X_test)
+                print(predicted_LSTM.shape)
+                predicted_LSTM = sc_predict.inverse_transform(predicted_LSTM)
+                print(predicted_LSTM.shape)
+                print(self.targetfeatures)
+                dfPredicted = pd.DataFrame(predicted_LSTM, columns = [self.targetfeatures])
+               
+                dfPredicted.to_csv(self.script_code+"--Data.csv")
+        
+
+        
+
+
+
                 
 class ModelManager:
+
+        def TrainMode(self):
+                print("Train Model---")
 
         def Selector(self,scriptcode,data,Threshold,target,Corr_Thresh,split,timesteps,modelpath):
 
                 #data = DataProcessor(dataframe,Threshold,target,Corr_Thresh)
+                print("Data shape {}".format(data.shape))
+                # Last Row specifics
+
                 trainin_limit = split
                 training_upbound = split*data.shape[0]
                 training_upbound = math.ceil(training_upbound)
-
-                target = list(data.columns).index(target)
+                self.targetColumns = target
+                
+                #Target Indices
+                target_col_indices = [data.columns.get_loc(c) for c in target if c in data]
+                print("Indices of Target Column={}".format(target_col_indices))
 
                 lookback = timesteps
                 features = data.shape[1]
@@ -80,12 +176,16 @@ class ModelManager:
                 sc = MinMaxScaler(feature_range=(0,1))
                 sc_predict = MinMaxScaler(feature_range=(0,1))
                 training_data_scaled = sc.fit_transform(training_data)
-                training_target_scaled = sc_predict.fit_transform(training_data.iloc[:,target].values.reshape(-1,1))
+                #training_target_scaled = sc_predict.fit_transform(training_data.iloc[:,target_col_indices]#.values.reshape(-1,1))
+                #print("Training target scaled shape {}".format(training_target_scaled.shape))
+                
+                print("Training data shape {}".format(training_data.shape))
+                print("training_data_scaled shape {}".format(training_data_scaled.shape))
                 X_train = []
                 Y_train = []
-                for i in range(lookback,training_data.shape[0]):
+                for i in range(lookback,training_data_scaled.shape[0]):
                         X_train.append(training_data_scaled[i-lookback:i,:])
-                        Y_train.append(training_data_scaled[i,target])      
+                        Y_train.append(training_data_scaled[i,target_col_indices])      
                 X_train,Y_train = np.array(X_train),np.array(Y_train)
 
                 #Test Data and scaling
@@ -98,38 +198,30 @@ class ModelManager:
                 Y_test = []
                 for i in range(lookback,dataset_total.shape[0]):
                         X_test.append(inp[i-lookback:i,:])
-                        Y_test.append(inp[i,target])
+                        Y_test.append(inp[i,target_col_indices])
                 X_test,Y_test = np.array(X_test),np.array(Y_test)
 
+                print("X_train shape=={}".format(X_train.shape))
+                print("Y_train shape=={}".format(Y_train.shape))
+                print("X_test shape=={}".format(X_test.shape))
+                print("Y_test shape=={}".format(Y_test.shape))
+
                 print("LSTM is being trained and tested now\n")
-                #LSTM training structure
-                LSTM = Sequential()
-                LSTM.add(layers.LSTM(units = 200,input_shape=(lookback,features)))
-                LSTM.add(Dense(units=1 , activation = 'linear'))
-                LSTM.compile(optimizer='adadelta',loss="mean_absolute_error")
-                LSTM.fit(X_train,Y_train,epochs=500,batch_size=16,verbose=1)
-                Model_Array['LSTM']= LSTM.evaluate(X_test,Y_test)
-                modelList.append(PersistModel('LSTM',LSTM))
-                predicted_LSTM = LSTM.predict(X_test)
-                predicted_LSTM = sc_predict.inverse_transform(predicted_LSTM)
+                xmodel = xModel(script_code = scriptcode,lookback=lookback,features=features,target=target,monitor="loss",model_name="LSTM",targetfeatures=self.targetColumns)
+                xmodel.LSTM()
+                xmodel.train(X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,
+                epochs=500,batch_size=16, verbose=1
+                )
+                        
+                
 
                 print("CNN is being trained and tested now\n")
                 #CNN
-                CNN = Sequential()
-                CNN.add(Conv1D(filters=128, kernel_size=2, activation='relu', input_shape=(lookback, features)))
-                CNN.add(Conv1D(filters=128,kernel_size=2,activation='relu'))
-                CNN.add(MaxPooling1D(2))
-                CNN.add(Conv1D(filters=128,kernel_size=1,activation='relu'))
-                CNN.add(Conv1D(filters=128,kernel_size=1,activation='relu'))
-                CNN.add(Flatten())
-                CNN.add(Dense(50, activation='relu'))
-                CNN.add(Dense(1))
-                CNN.compile(optimizer='adam', loss='mae')
-                CNN.fit(X_train,Y_train,epochs=500,verbose=1,batch_size=16)
-                Model_Array['CNN'] = CNN.evaluate(X_test,Y_test)
-                modelList.append(PersistModel('CNN',CNN))
-                predicted_CNN = CNN.predict(X_test)
-                predicted_CNN = sc_predict.inverse_transform(predicted_CNN)
+                xmodel.name="CNN"
+                xmodel.CNN()
+                xmodel.train(X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc_predict,
+                epochs=500,batch_size=16, verbose=1
+                )
                 
                 def generator():
 

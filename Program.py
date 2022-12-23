@@ -34,25 +34,31 @@ application = newrelic.agent.application()
 
 class Main:
         @newrelic.agent.background_task(name='Main-init', group='Task')
-        def __init__(self,scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath, index=0):
+        def __init__(self,scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath, index=0,read_from_file=0):
                 self.Threshold = Threshold
                 self.Corr_Thresh=Corr_Thresh
                 self.Target=Target
                 self.split= split
                 self.timesteps=timesteps
                 self.scriptcode = scriptcode
-
-                if (index==0):
-                    df= get_history(symbol=scriptcode, start=date(2020,1,1), end=date.today())
-                    df = df.rename(columns = {"No. of Shares": "Volume"})
-                    df = df.rename(columns = {"Last": "Adj Close"})
-                    df = df.dropna(axis=0)
+                if (read_from_file==0):
+                    if (index==0):
+                        df= get_history(symbol=scriptcode, start=date(2020,1,1), end=date.today())
+                        df = df.rename(columns = {"No. of Shares": "Volume"})
+                        df = df.rename(columns = {"Last": "Adj Close"})
+                        df = df.dropna(axis=0)
+                    else:
+                        pull = Puller("Y")
+                        df = pull.get_history(scriptcode,"^"+scriptcode)
+                        str_replace = scriptcode+"_"
+                        df = df.rename(columns=lambda x: x.replace(str_replace, ''))
+                        print(df.columns)
                 else:
-                    pull = Puller("Y")
-                    df = pull.get_history(scriptcode,"^"+scriptcode)
-                    str_replace = scriptcode+"_"
-                    df = df.rename(columns=lambda x: x.replace(str_replace, ''))
+                    df = pd.read_csv(scriptcode + "Scrapped.csv")
+                    df = df.drop("Date", axis='columns')
                     print(df.columns)
+                    self.analyzed_data= df
+
                 df.to_csv(scriptcode + "--Original.csv")
                 data = df
                 print("Size of the dataset {}",format(df.shape))
