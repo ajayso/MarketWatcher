@@ -101,7 +101,7 @@ class xModel:
                         verbose=1
                 )
                 #self.callbacks = [earlystopping,lr,reduce_lr,csv_log,checkpoint]
-                self.callbacks = [earlystopping]
+                self.callbacks = [reduce_lr]
                 
         def CNN(self,):
                 CNN = Sequential()
@@ -118,7 +118,7 @@ class xModel:
 
         def LSTM(self):
                 LSTM = Sequential()
-                LSTM.add(layers.LSTM(units = 200,input_shape=(self.lookback,self.features)))
+                LSTM.add(layers.Bidirectional(layers.LSTM(units = 200,input_shape=(self.lookback,self.features))))
                 LSTM.add(Dense(units=self.target , activation = 'relu'))
                 LSTM.compile(optimizer='adadelta',loss="mean_absolute_error")
                 self.model = LSTM
@@ -130,13 +130,14 @@ class xModel:
                 callbacks=self.callbacks)
                 Model_Array[self.name]= self.model.evaluate(X_test,Y_test)
                 modelList.append(PersistModel(self.name,self.model))
-                predicted_LSTM = self.model.predict(X_test)
+                predicted_data = self.model.predict(X_test)
                 print("Predictions------")
-                print(predicted_LSTM.shape)
-                predicted_LSTM = sc_predict.inverse_transform(predicted_LSTM)
-                print(predicted_LSTM.shape)
+                print(predicted_data)
+                print(predicted_data.shape)
+                original_data = sc_predict.inverse_transform(predicted_data)
+                print(original_data.shape)
                 print(self.targetfeatures)
-                dfPredicted = pd.DataFrame(predicted_LSTM, columns = [self.targetfeatures])
+                dfPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
                
                 dfPredicted.to_csv("{}-{}-Data.csv".format(self.script_code, self.name))
         
@@ -175,7 +176,7 @@ class ModelManager:
                 #Train data and scaling
                 training_data = data.iloc[:training_upbound,:]
                 test_data = data.iloc[training_upbound+1:,:]
-                sc = MinMaxScaler(feature_range=(0,1))
+                sc = MinMaxScaler(feature_range=(0,1)).fit(training_data)
                 sc_predict = MinMaxScaler(feature_range=(0,1))
                 training_data_scaled = sc.fit_transform(training_data)
                 training_target_scaled = sc_predict.fit_transform(training_data.iloc[:,target_col_indices].values.reshape(-1,1))
@@ -195,6 +196,7 @@ class ModelManager:
                 dataset_total = training_data.iloc[-lookback:,:]
                 dataset_total = pd.concat([dataset_total ,data.iloc[training_upbound+1:,:]],axis=0)
                 inp = dataset_total.copy()
+                print("Inp shape {}".format(inp.shape))
                 inp = sc.transform(inp)
                 X_test = []
                 Y_test = []
