@@ -41,7 +41,7 @@ Returns String.
 """
 def lr_decay(epoch, lr):
         if epoch != 0 and epoch % 5 == 0:
-                return lr * 0.2
+                return lr * 0.02
         return lr
 
 class PersistModel:
@@ -100,7 +100,8 @@ class xModel:
                         save_weights_only=True,
                         verbose=1
                 )
-                self.callbacks = [earlystopping,lr,reduce_lr,csv_log,checkpoint]
+                #self.callbacks = [earlystopping,lr,reduce_lr,csv_log,checkpoint]
+                self.callbacks = [earlystopping]
                 
         def CNN(self,):
                 CNN = Sequential()
@@ -130,13 +131,14 @@ class xModel:
                 Model_Array[self.name]= self.model.evaluate(X_test,Y_test)
                 modelList.append(PersistModel(self.name,self.model))
                 predicted_LSTM = self.model.predict(X_test)
+                print("Predictions------")
                 print(predicted_LSTM.shape)
                 predicted_LSTM = sc_predict.inverse_transform(predicted_LSTM)
                 print(predicted_LSTM.shape)
                 print(self.targetfeatures)
                 dfPredicted = pd.DataFrame(predicted_LSTM, columns = [self.targetfeatures])
                
-                dfPredicted.to_csv(self.script_code+"--Data.csv")
+                dfPredicted.to_csv("{}-{}-Data.csv".format(self.script_code, self.name))
         
 
         
@@ -176,8 +178,8 @@ class ModelManager:
                 sc = MinMaxScaler(feature_range=(0,1))
                 sc_predict = MinMaxScaler(feature_range=(0,1))
                 training_data_scaled = sc.fit_transform(training_data)
-                #training_target_scaled = sc_predict.fit_transform(training_data.iloc[:,target_col_indices]#.values.reshape(-1,1))
-                #print("Training target scaled shape {}".format(training_target_scaled.shape))
+                training_target_scaled = sc_predict.fit_transform(training_data.iloc[:,target_col_indices].values.reshape(-1,1))
+                print("Training target scaled shape {}".format(training_target_scaled.shape))
                 
                 print("Training data shape {}".format(training_data.shape))
                 print("training_data_scaled shape {}".format(training_data_scaled.shape))
@@ -209,7 +211,7 @@ class ModelManager:
                 print("LSTM is being trained and tested now\n")
                 xmodel = xModel(script_code = scriptcode,lookback=lookback,features=features,target=target,monitor="loss",model_name="LSTM",targetfeatures=self.targetColumns)
                 xmodel.LSTM()
-                xmodel.train(X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,
+                xmodel.train(X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc_predict,
                 epochs=500,batch_size=16, verbose=1
                 )
                         
