@@ -23,9 +23,14 @@ sys.path.insert(0, '\ModelsGenerators')
 from ModelsGenerators.ModelSelectorTarget import ModelManager
 from ModelsGenerators.LearnerTarget import ModelBuilder
 
+# support for index pull
+import yfinance as yf
+sys.path.insert(0,'\rutils/')
+from rutils.YahooData import Puller
+
 class Main:
 
-        def __init__(self,scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath):
+        def __init__(self,scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath, index=0):
                 self.Threshold = Threshold
                 self.Corr_Thresh=Corr_Thresh
                 self.Target=Target
@@ -33,22 +38,19 @@ class Main:
                 self.timesteps=timesteps
                 self.scriptcode = scriptcode
 
-                #quandl.ApiConfig.api_key = "V8v63CRpQLfH8YKfsAmu"
-                #df = quandl.get("NSE/" + scriptcode,api_key =api_key)
-                #data = get_history(symbol=scriptcode,
-                #   start=date(2007,1,1), 
-                #   end=date.today())
-                #data.to_csv(scriptcode + "--DataOriginal.csv")
-                #df = pd.read_csv(scriptcode + "--DataOriginal.csv")
-                print(date.today())
- 
-                df = get_history(scriptcode,  start=date(2016,7,1), end= date.today())
-                df = df.rename(columns = {"No. of Shares": "Volume"})
-                df = df.rename(columns = {"Last": "Adj Close"})
-                df = df.dropna(axis=0)
+                if (index==0):
+                    df= get_history(symbol=scriptcode, start=date(2020,1,1), end=date.today())
+                    df = df.rename(columns = {"No. of Shares": "Volume"})
+                    df = df.rename(columns = {"Last": "Adj Close"})
+                    df = df.dropna(axis=0)
+                else:
+                    pull = Puller("Y")
+                    df = pull.get_history(scriptcode,"^"+scriptcode)
+                    str_replace = scriptcode+"_"
+                    df = df.rename(columns=lambda x: x.replace(str_replace, ''))
+                    print(df.columns)
                 df.to_csv(scriptcode + "--Original.csv")
-                data =df [['Open', 'High', 'Low', 'Close', 'WAP', 'Volume', "No. of Trades"]] #,'VWAP']]
-               
+                data = df
                 print("Size of the dataset {}",format(df.shape))
                 self.data = data
                 self.modelpath = modelpath
