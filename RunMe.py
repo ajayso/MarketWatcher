@@ -39,6 +39,6 @@ p = Main(scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath,1,rea
 #dataset.to_csv(scriptcode + "Scrapped.csv")
 #print(dataset)
 p._buildModels()
-p._forecast_data(modelpath,"LSTM")
+#p._forecast_data(modelpath,"LSTM")
 
 

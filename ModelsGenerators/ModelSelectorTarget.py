@@ -115,17 +115,18 @@ class xModel:
                 self.script_code = script_code
                 earlystopping = EarlyStopping(
                 monitor=monitor, 
-                patience=100, 
+                patience=0.5, 
                 verbose=1, 
                 mode='min'
                 )
                 lr = LearningRateScheduler(lr_decay, verbose=1)
                 reduce_lr = ReduceLROnPlateau(
                         monitor=monitor, 
-                        factor=0.02,   
-                        patience=2, 
+                        factor=0.2,   
+                        patience=5, 
                         min_lr=0.001,
-                        verbose=2
+                        verbose=2,
+                        mode="auto"
                         )
                 csv_log = CSVLogger(model_name+ "results.csv")
                 
@@ -168,8 +169,13 @@ class xModel:
                 validation_data=(X_test,Y_test),
                 epochs=500,batch_size=16,verbose=1,
                 callbacks=self.callbacks)
+                X_val = X_test[1:7,]
+                Y_val = Y_test[7,]
+
                 Model_Array[self.name]= self.model.evaluate(X_test,Y_test)
                 modelList.append(PersistModel(self.name,self.model))
+                pX = self.model.predict(X_val)
+                print(pX)
                 predicted_data = self.model.predict(X_test)
                 print("Predictions------")
                 print(predicted_data)
@@ -179,39 +185,51 @@ class xModel:
                 print(self.targetfeatures)
                 dfPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
                 dfPredicted.to_csv("{}-{}-Data.csv".format(self.script_code, self.name))
+                print(self.script_code)
 
-                self.Forecast(
-                        lastbatch,
-                        script_code=self.script_code,
-                        name=self.name
-                )
 
                 # #Prediction of Last Batch
-                # print(lastbatch.shape)
-                # X_lastbatch=np.array(lastbatch)
-                # X_lastbatch_scaled = sc.transform(X_lastbatch)
-                # last_batch_predicted_data = self.model.predict(X_lastbatch_scaled)
-                # print("Predictions------")
-                # print(last_batch_predicted_data)
-                # print(last_batch_predicted_data.shape)
-                # original_data = sc_predict.inverse_transform(last_batch_predicted_data)
-                # dfLastBatchPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
-                # dfLastBatchPredicted.to_csv("{}-{}-Latest-Data.csv".format(self.script_code, self.name))
+                print(lastbatch.shape)
+                X_lastbatch=np.array(lastbatch)
+                X_lastbatch_scaled = sc.transform(X_lastbatch)
+                X_lastbatch_scaled=X_lastbatch_scaled.reshape(1,7,19)
+                print(X_lastbatch_scaled.shape)
+                last_batch_predicted_data = self.model.predict(X_lastbatch_scaled)
+                print("Forecast------")
+                print(last_batch_predicted_data)
+                print(last_batch_predicted_data.shape)
+                original_data = sc_predict.inverse_transform(last_batch_predicted_data)
+                dfLastBatchPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
+                dfLastBatchPredicted.to_csv("{}-{}-Latest-Data.csv".format(self.script_code, self.name))
+
+                
+                # data = xModel.Forecast(
+                #         lastbatch,
+                #         script_code=self.script_code,
+                #         name=self.name,
+                #         targetfeatures=self.targetfeatures,
+                #         sc=sc,
+                #         sc_predict=sc_predict
+                #  )
+                # print(data)
         
-        def Forecast(X,script_code,name):
+        def Forecast(X,script_code,name,targetfeatures,sc=None,sc_predict=None):
+                print("Inside here---")
+                  
                 modelpath = os.getcwd() + "\Models" 
                 persistedModel = PersistModel(name,None)
                 model = persistedModel.Read(scriptcode=script_code,modelpath=modelpath)
                 X_forecast=np.array(X)
-                sc = MinMaxScaler(feature_range=(0,1)).fit(X_forecast)
-                X_forecast_scaled = sc.fit_transform(X_forecast)
+                #sc = MinMaxScaler(feature_range=(0,1)).fit(X_forecast)
+                X_forecast_scaled = sc.transform(X_forecast)
+                X_forecast_scaled=X_forecast_scaled.reshape(1,7,19)
                 forecast_data = model.predict(X_forecast_scaled)
                 print("Forecasted------")
                 print(forecast_data)
                 print(forecast_data.shape)
-                original_data = sc.inverse_transform(forecast_data)
-                dfLastBatchForecasted = pd.DataFrame(original_data, columns = [self.targetfeatures])
-                dfLastBatchForecasted.to_csv("{}-{}-Forecasted-Data.csv".format(self.script_code, self.name))
+                original_data = sc_predict.inverse_transform(forecast_data)
+                dfLastBatchForecasted = pd.DataFrame(original_data, columns = [targetfeatures])
+                dfLastBatchForecasted.to_csv("{}-{}-Forecasted-Data.csv".format(script_code, name))
                 return (original_data)
 
 
