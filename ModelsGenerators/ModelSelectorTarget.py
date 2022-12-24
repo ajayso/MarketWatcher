@@ -115,7 +115,7 @@ class xModel:
                 self.script_code = script_code
                 earlystopping = EarlyStopping(
                 monitor=monitor, 
-                patience=0.5, 
+                patience=0.1, 
                 verbose=1, 
                 mode='min'
                 )
@@ -156,31 +156,36 @@ class xModel:
             
 
         def LSTM(self):
+                biistm = layers.Bidirectional(layers.LSTM(units = 200,input_shape=(self.lookback,self.features)))
                 LSTM = Sequential()
+                #LSTM.add((layers.LSTM(units = 200,input_shape=(self.lookback,self.features))))
                 LSTM.add(layers.Bidirectional(layers.LSTM(units = 200,input_shape=(self.lookback,self.features))))
                 #LSTM.add(layers.Bidirectional(layers.LSTM(10)))
+                LSTM.add(Dense(50))
+                LSTM.add(Dropout(0.5))
                 LSTM.add(Dense(units=self.target , activation = 'relu'))
+                LSTM.add(Dropout(0.4))
                 LSTM.compile(optimizer='adadelta',loss="mean_absolute_error",metrics=['accuracy'])
                 self.model = LSTM
         
         def train(self,X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,sc_predict,
-                epochs=500,batch_size=16, verbose=1,
+                epochs=500,batch_size=32, verbose=1,
                 lastbatch=None,
                 sourceColumns=None
                 ):
                 history = self.model.fit(X_train,Y_train,
                 validation_data=(X_test,Y_test),
-                epochs=500,batch_size=16,verbose=1,
+                epochs=500,batch_size=32,verbose=1,
                 callbacks=self.callbacks)
-                X_val = X_test[1:7,]
-                Y_val = Y_test[7,]
+                #X_val = X_test[1:7,]
+                #Y_val = Y_test[7,]
 
                 Model_Array[self.name]= self.model.evaluate(X_test,Y_test)
                 modelList.append(PersistModel(self.name,self.model))
-                pX = self.model.predict(X_val)
-                print(pX)
-                original_px = sc_predict.inverse_transform(pX)
-                print("Validation of px {}".format(original_px))
+                #pX = self.model.predict(X_val)
+                #print(pX)
+                #original_px = sc_predict.inverse_transform(pX)
+                #print("Validation of px {}".format(original_px))
                 predicted_data = self.model.predict(X_test)
                 print("Predictions------")
                 print(predicted_data)
@@ -211,18 +216,20 @@ class xModel:
                         print(X_batch_scaled.shape)
                         batch_predicted_data = self.model.predict(X_batch_scaled)
                         print("Forecast------")
-                        print(batch_predicted_data)
+                        
                         print(batch_predicted_data.shape)
                         print(forecast)
+                        batch_predicted_data = sc_predict.inverse_transform(batch_predicted_data)
+                        print(batch_predicted_data)
                         # add batch_predicted_data to origins
                         forecast.loc[len(forecast.index)] = batch_predicted_data[0]
                         origins.loc[len(origins.index)] = batch_predicted_data[0]
                         print(forecast.shape)
                         #print(origin.shape)
                         
-
+                forecast.to_csv("{}-{}-Y Forecasted-Data.csv".format(self.script_code, self.name))
                 #dfLastBatchPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
-                origins.to_csv("{}-{}-Forecasted-Data.csv".format(self.script_code, self.name))
+                #origins.to_csv("{}-{}-Forecasted-Data.csv".format(self.script_code, self.name))
                 
                 
                 # data = xModel.Forecast(

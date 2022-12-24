@@ -31,7 +31,7 @@ scriptcode = "GSPC"
 Threshold=0.7
 Corr_Thresh=0.7
 Target=['Open','High','Close']
-split=0.8
+split=0.7
 timesteps=7
 modelpath = os.getcwd() + "\Models" 
 p = Main(scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath,1,read_from_file=1,forecast=0)
