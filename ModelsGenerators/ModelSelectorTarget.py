@@ -67,9 +67,13 @@ class PersistModel:
                 self.model.save_weights(modelpath + "\\" + scriptcode + ".h5")
         def Read(self,scriptcode, modelpath):
                 filename = modelpath + "\\" + scriptcode + ".json"
+
+                #json_file = open(filename, 'r')
+                #json_file.close()
                 json_file = open(filename, 'r')
+                loaded_model_json = json_file.read()
                 json_file.close()
-                loaded_model = model_from_json(json_file)
+                loaded_model = model_from_json(loaded_model_json)
                 loaded_model.load_weights(modelpath + "\\" + scriptcode + ".h5")
                 loaded_model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
                 return(loaded_model)
@@ -194,13 +198,13 @@ class xModel:
                 # dfLastBatchPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
                 # dfLastBatchPredicted.to_csv("{}-{}-Latest-Data.csv".format(self.script_code, self.name))
         
-        def Forecast(self,X,script_code,name):
+        def Forecast(X,script_code,name):
                 modelpath = os.getcwd() + "\Models" 
                 persistedModel = PersistModel(name,None)
                 model = persistedModel.Read(scriptcode=script_code,modelpath=modelpath)
                 X_forecast=np.array(X)
                 sc = MinMaxScaler(feature_range=(0,1)).fit(X_forecast)
-                X_forecast_scaled = sc.transform(X_forecast)
+                X_forecast_scaled = sc.fit_transform(X_forecast)
                 forecast_data = model.predict(X_forecast_scaled)
                 print("Forecasted------")
                 print(forecast_data)
@@ -226,6 +230,15 @@ class ModelManager:
 
         def TrainMode(self):
                 print("Train Model---")
+        
+        def Forecast(self,scriptcode,data,lookback,name,modelpath=None):
+                #xmodel = xModel(script_code=scriptcode,model_name=name,
+                #lookback=lookback,features="", target=0,monitor="",targetfeatures="")
+                forecast_data = xModel.Forecast(X=data,script_code=scriptcode,name=name)
+                print(forecast_data)
+
+
+        
 
         def Selector(self,scriptcode,data,Threshold,target,Corr_Thresh,split,timesteps,modelpath):
 
