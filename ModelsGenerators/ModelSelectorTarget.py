@@ -215,8 +215,10 @@ class xModel:
                         print(batch_predicted_data.shape)
                         print(forecast)
                         # add batch_predicted_data to origins
-                        forecast.loc[len(forecast.index)] = batch_predicted_data
-                        origins.loc[len(origins.index)] = batch_predicted_data
+                        forecast.loc[len(forecast.index)] = batch_predicted_data[0]
+                        origins.loc[len(origins.index)] = batch_predicted_data[0]
+                        print(forecast.shape)
+                        #print(origin.shape)
                         
 
                 #dfLastBatchPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
