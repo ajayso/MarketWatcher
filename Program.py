@@ -61,9 +61,9 @@ class Main:
                         print(df.columns)
                         self.analyzed_data= df
 
-                    df.to_csv(scriptcode + "--Original.csv")
                     #df = df[["Open","High","Close"]]
                     data = df
+                    self.analyzed_data= df
                     print("Size of the dataset {}",format(df.shape))
                     self.data = data
                     self.modelpath = modelpath

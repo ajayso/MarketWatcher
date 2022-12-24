@@ -148,6 +148,7 @@ class xModel:
                 CNN.add(MaxPooling1D(2))
                 CNN.add(Conv1D(filters=128,kernel_size=1,activation='relu'))
                 CNN.add(Conv1D(filters=128,kernel_size=1,activation='relu'))
+                CNN.add(layers.TimeDistributed(Dense(1)))
                 CNN.add(Flatten())
                 CNN.add(Dense(50, activation='relu'))
                 CNN.add(Dense(self.target))
@@ -157,13 +158,15 @@ class xModel:
         def LSTM(self):
                 LSTM = Sequential()
                 LSTM.add(layers.Bidirectional(layers.LSTM(units = 200,input_shape=(self.lookback,self.features))))
+                #LSTM.add(layers.Bidirectional(layers.LSTM(10)))
                 LSTM.add(Dense(units=self.target , activation = 'relu'))
                 LSTM.compile(optimizer='adadelta',loss="mean_absolute_error",metrics=['accuracy'])
                 self.model = LSTM
         
         def train(self,X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,sc_predict,
                 epochs=500,batch_size=16, verbose=1,
-                lastbatch=None
+                lastbatch=None,
+                sourceColumns=None
                 ):
                 history = self.model.fit(X_train,Y_train,
                 validation_data=(X_test,Y_test),
@@ -176,6 +179,8 @@ class xModel:
                 modelList.append(PersistModel(self.name,self.model))
                 pX = self.model.predict(X_val)
                 print(pX)
+                original_px = sc_predict.inverse_transform(pX)
+                print("Validation of px {}".format(original_px))
                 predicted_data = self.model.predict(X_test)
                 print("Predictions------")
                 print(predicted_data)
@@ -187,21 +192,36 @@ class xModel:
                 dfPredicted.to_csv("{}-{}-Data.csv".format(self.script_code, self.name))
                 print(self.script_code)
 
-
+                forecast_steps=30 
                 # #Prediction of Last Batch
-                print(lastbatch.shape)
-                X_lastbatch=np.array(lastbatch)
-                X_lastbatch_scaled = sc.transform(X_lastbatch)
-                X_lastbatch_scaled=X_lastbatch_scaled.reshape(1,7,19)
-                print(X_lastbatch_scaled.shape)
-                last_batch_predicted_data = self.model.predict(X_lastbatch_scaled)
-                print("Forecast------")
-                print(last_batch_predicted_data)
-                print(last_batch_predicted_data.shape)
-                original_data = sc_predict.inverse_transform(last_batch_predicted_data)
-                dfLastBatchPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
-                dfLastBatchPredicted.to_csv("{}-{}-Latest-Data.csv".format(self.script_code, self.name))
+                #dataframe for the original data
+                total_features = len(sourceColumns) 
+                print(lastbatch)
+                origins = lastbatch
+                lookback= 7
+                forecast = pd.DataFrame(columns=self.targetfeatures)
+                # to be repaced by actual no of input features
+                for i in range(0,forecast_steps):
+                        print(lastbatch.shape)
+                        X_batch = origins[i:i+lookback]
+                        print(X_batch)
+                        X_batch=np.array(X_batch)
+                        X_batch_scaled = sc.transform(X_batch)
+                        X_batch_scaled=X_batch_scaled.reshape(1,7,total_features)
+                        print(X_batch_scaled.shape)
+                        batch_predicted_data = self.model.predict(X_batch_scaled)
+                        print("Forecast------")
+                        print(batch_predicted_data)
+                        print(batch_predicted_data.shape)
+                        print(forecast)
+                        # add batch_predicted_data to origins
+                        forecast.loc[len(forecast.index)] = batch_predicted_data
+                        origins.loc[len(origins.index)] = batch_predicted_data
+                        
 
+                #dfLastBatchPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
+                origins.to_csv("{}-{}-Forecasted-Data.csv".format(self.script_code, self.name))
+                
                 
                 # data = xModel.Forecast(
                 #         lastbatch,
@@ -269,7 +289,7 @@ class ModelManager:
                 training_upbound = split*data.shape[0]
                 training_upbound = math.ceil(training_upbound)
                 self.targetColumns = target
-                
+                self.sourceColumns = data.columns
                 #Target Indices
                 target_col_indices = [data.columns.get_loc(c) for c in target if c in data]
                 print("Indices of Target Column={}".format(target_col_indices))
@@ -325,12 +345,15 @@ class ModelManager:
                 print("X_test shape=={}".format(X_test.shape))
                 print("Y_test shape=={}".format(Y_test.shape))
 
+        
                 print("LSTM is being trained and tested now\n")
                 xmodel = xModel(script_code = scriptcode,lookback=lookback,features=features,target=target,monitor="val_loss",model_name="LSTM",targetfeatures=self.targetColumns)
+                #xmodel.PCA_n(data)
                 xmodel.LSTM()
                 xmodel.train(X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,sc_predict,
                 epochs=500,batch_size=16, verbose=1,
-                lastbatch=lastiteration
+                lastbatch=lastiteration,
+                sourceColumns = self.sourceColumns
                 )
                         
                 
@@ -341,7 +364,8 @@ class ModelManager:
                 xmodel.CNN()
                 xmodel.train(X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,sc_predict,
                 epochs=500,batch_size=16, verbose=1,
-                lastbatch=lastiteration
+                lastbatch=lastiteration,
+                sourceColumns = self.sourceColumns
                 )
                 
                 def generator():
