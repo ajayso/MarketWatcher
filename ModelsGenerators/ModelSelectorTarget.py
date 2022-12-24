@@ -21,9 +21,17 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.callbacks import LearningRateScheduler
 import sys
+import os
 
 #from DataProcessor import DataProcessor
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.decomposition import PCA
+from sklearn import preprocessing
+
+# plotting & outputs
+import matplotlib.pyplot as plt
+plt.style.use('seaborn')
+from pprint import pprint
 
 """
 Appended Models : LSTM , CNN , GAN with LSTM Generator.
@@ -35,7 +43,7 @@ dataframe ---> Pandas Dataframe , Cleaned out of NaNs.
 Threshold ----> The number of minimum rows in the target datasets ( Integer only )
 target ----> target price index (String)
 Corr_Thresh ---> Float , for minimum Correlation Score.
-timesteps ---> lookback period ( Interger only )
+timesteps ---> lookback period ( Integer only )
 
 Returns String.
 
@@ -61,14 +69,38 @@ class PersistModel:
                 filename = modelpath + "\\" + scriptcode + ".json"
                 json_file = open(filename, 'r')
                 json_file.close()
+                loaded_model = model_from_json(json_file)
                 loaded_model.load_weights(modelpath + "\\" + scriptcode + ".h5")
                 loaded_model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+                return(loaded_model)
 
                
                              
 class xModel:
 
-
+        def PCA_n(self,X):#principal component analysis
+                scaler = preprocessing.StandardScaler().fit(X)
+                X_scaled = scaler.transform(X)
+                X_scaled= pd.DataFrame(X_scaled)
+                estimator_pca = PCA(n_components=None)
+                estimator_pca.fit(X_scaled)
+                evr = estimator_pca.explained_variance_ratio_ 
+                plt.figure(figsize=(8, 5))
+                plt.plot(np.arange(1, len(evr) + 1), np.cumsum(evr*100), "-o")
+                plt.title("PCA", fontsize=15)
+                plt.xlabel("n_components",fontsize=15)
+                plt.ylabel("(%)",fontsize=15)
+                plt.xticks(range(1,len(evr),2),fontsize=12)
+                plt.yticks(fontsize=12)
+                plt.show()
+        
+        def pcaX(self,X,n):#Data dimensionality reduction
+                scaler = preprocessing.StandardScaler().fit(X)
+                X_scaled = scaler.transform(X)
+                pca = PCA(n_components=n)
+                pca_X = pca.fit_transform(X)
+                print('降维：',X_scaled.shape,'-->',pca_X.shape)
+                return pd.DataFrame(pca_X)
 
         def __init__(self,script_code,model_name, lookback,features, target,monitor,targetfeatures):
                 self.lookback = lookback
@@ -79,14 +111,14 @@ class xModel:
                 self.script_code = script_code
                 earlystopping = EarlyStopping(
                 monitor=monitor, 
-                patience=200, 
+                patience=100, 
                 verbose=1, 
                 mode='min'
                 )
                 lr = LearningRateScheduler(lr_decay, verbose=1)
                 reduce_lr = ReduceLROnPlateau(
                         monitor=monitor, 
-                        factor=0.2,   
+                        factor=0.02,   
                         patience=2, 
                         min_lr=0.001,
                         verbose=2
@@ -144,16 +176,41 @@ class xModel:
                 dfPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
                 dfPredicted.to_csv("{}-{}-Data.csv".format(self.script_code, self.name))
 
-                #Prediction of Last Batch
-                X_lastbatch=np.array(lastbatch)
-                X_lastbatch_scaled = sc.transform(X_lastbatch)
-                last_batch_predicted_data = self.model.predict(X_lastbatch_scaled)
-                print("Predictions------")
-                print(last_batch_predicted_data)
-                print(last_batch_predicted_data.shape)
-                original_data = sc_predict.inverse_transform(last_batch_predicted_data)
-                dfLastBatchPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
-                dfLastBatchPredicted.to_csv("{}-{}-Latest-Data.csv".format(self.script_code, self.name))
+                self.Forecast(
+                        lastbatch,
+                        script_code=self.script_code,
+                        name=self.name
+                )
+
+                # #Prediction of Last Batch
+                # print(lastbatch.shape)
+                # X_lastbatch=np.array(lastbatch)
+                # X_lastbatch_scaled = sc.transform(X_lastbatch)
+                # last_batch_predicted_data = self.model.predict(X_lastbatch_scaled)
+                # print("Predictions------")
+                # print(last_batch_predicted_data)
+                # print(last_batch_predicted_data.shape)
+                # original_data = sc_predict.inverse_transform(last_batch_predicted_data)
+                # dfLastBatchPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
+                # dfLastBatchPredicted.to_csv("{}-{}-Latest-Data.csv".format(self.script_code, self.name))
+        
+        def Forecast(self,X,script_code,name):
+                modelpath = os.getcwd() + "\Models" 
+                persistedModel = PersistModel(name,None)
+                model = persistedModel.Read(scriptcode=script_code,modelpath=modelpath)
+                X_forecast=np.array(X)
+                sc = MinMaxScaler(feature_range=(0,1)).fit(X_forecast)
+                X_forecast_scaled = sc.transform(X_forecast)
+                forecast_data = model.predict(X_forecast_scaled)
+                print("Forecasted------")
+                print(forecast_data)
+                print(forecast_data.shape)
+                original_data = sc.inverse_transform(forecast_data)
+                dfLastBatchForecasted = pd.DataFrame(original_data, columns = [self.targetfeatures])
+                dfLastBatchForecasted.to_csv("{}-{}-Forecasted-Data.csv".format(self.script_code, self.name))
+                return (original_data)
+
+
 
 
 
