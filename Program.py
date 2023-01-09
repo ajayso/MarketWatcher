@@ -33,8 +33,10 @@ import newrelic.agent
 application = newrelic.agent.application()
 
 class Main:
-        @newrelic.agent.background_task(name='Main-init', group='Task')
+        
+        #@newrelic.agent.background_task(name='Main-init', group='Task')
         def __init__(self,scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath, index=0,read_from_file=0,forecast=0):
+                newrelic.agent.set_transaction_name("Main_Init", group=None, priority=None)
                 self.Threshold = Threshold
                 self.Corr_Thresh=Corr_Thresh
                 self.Target=Target

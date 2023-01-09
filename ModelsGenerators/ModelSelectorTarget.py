@@ -33,6 +33,10 @@ import matplotlib.pyplot as plt
 plt.style.use('seaborn')
 from pprint import pprint
 
+#Monitoring on NR 
+import newrelic.agent
+application = newrelic.agent.application()
+
 """
 Appended Models : LSTM , CNN , GAN with LSTM Generator.
 
@@ -57,7 +61,7 @@ class PersistModel:
         def __init__(self,name,model):
                 self.name = name
                 self.model = model
-
+        @newrelic.agent.background_task(name='PersistModel-save', group='Task')
         def Save(self,scriptcode, modelpath,modeltype):
                 model_json = self.model.to_json()
                 filename = modelpath + "\\" + scriptcode + ".json"
@@ -65,6 +69,7 @@ class PersistModel:
                     json_file.write(model_json)
                 # serialize weights to HDF5
                 self.model.save_weights(modelpath + "\\" + scriptcode + ".h5")
+        @newrelic.agent.background_task(name='PersistModel-Save', group='Task')
         def Read(self,scriptcode, modelpath):
                 filename = modelpath + "\\" + scriptcode + ".json"
 
@@ -140,7 +145,7 @@ class xModel:
                 )
                 #self.callbacks = [earlystopping,lr,reduce_lr,csv_log,checkpoint]
                 self.callbacks = [earlystopping,reduce_lr]
-                
+        @newrelic.agent.background_task(name='xModel-CNNCreate', group='Task')       
         def CNN(self,):
                 CNN = Sequential()
                 CNN.add(Conv1D(filters=128, kernel_size=2, activation='relu', input_shape=(self.lookback, self.features)))
@@ -154,7 +159,7 @@ class xModel:
                 CNN.add(Dense(self.target))
                 CNN.compile(optimizer='adam', loss='mae',metrics=['accuracy'])
             
-
+        @newrelic.agent.background_task(name='xModel-LSTMCreate', group='Task')  
         def LSTM(self):
                 biistm = layers.Bidirectional(layers.LSTM(units = 200,input_shape=(self.lookback,self.features)))
                 LSTM = Sequential()
@@ -167,7 +172,7 @@ class xModel:
                 LSTM.add(Dropout(0.4))
                 LSTM.compile(optimizer='adadelta',loss="mean_absolute_error",metrics=['accuracy'])
                 self.model = LSTM
-        
+        @newrelic.agent.background_task(name='xModel-TrainModel', group='Task')  
         def train(self,X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,sc_predict,
                 epochs=500,batch_size=32, verbose=1,
                 lastbatch=None,
@@ -241,7 +246,7 @@ class xModel:
                 #         sc_predict=sc_predict
                 #  )
                 # print(data)
-        
+        @newrelic.agent.background_task(name='xModel-ForecastModel', group='Task')  
         def Forecast(X,script_code,name,targetfeatures,sc=None,sc_predict=None):
                 print("Inside here---")
                   
@@ -286,7 +291,7 @@ class ModelManager:
 
 
         
-
+        @newrelic.agent.background_task(name='ModelManager-Selector', group='Task')  
         def Selector(self,scriptcode,data,Threshold,target,Corr_Thresh,split,timesteps,modelpath):
 
                 #data = DataProcessor(dataframe,Threshold,target,Corr_Thresh)
