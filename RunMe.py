@@ -26,18 +26,19 @@ from ModelsGenerators.LearnerTarget import ModelBuilder
 
 from Program import Main
 
-scriptcode = "RELIANCE"
+scriptcode = "GSPC"
 
 Threshold=0.7
 Corr_Thresh=0.7
-Target='Close'
-split=0.8
+Target=['Open','High','Close']
+split=0.7
 timesteps=7
 modelpath = os.getcwd() + "\Models" 
-p = Main(scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath)
-dataset = p.buildAnalyzers()
-dataset.to_csv(scriptcode + "Scrapped.csv")
+p = Main(scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath,1,read_from_file=1,forecast=0)
+#dataset = p.buildAnalyzers()
+#dataset.to_csv(scriptcode + "Scrapped.csv")
 #print(dataset)
 p._buildModels()
+#p._forecast_data(modelpath,"LSTM")
 
 
