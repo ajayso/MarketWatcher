@@ -37,7 +37,7 @@ from pprint import pprint
 import newrelic.agent
 from monitoring.Manager import MLLogger
 
-application = newrelic.agent.application()
+#application = newrelic.agent.application()
 
 
 """
