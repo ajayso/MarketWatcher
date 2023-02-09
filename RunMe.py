@@ -27,7 +27,7 @@ from ModelsGenerators.LearnerTarget import ModelBuilder
 from Program import Main
 
 scriptcode = "GSPC"
-
+print(scriptcode)
 Threshold=0.7
 Corr_Thresh=0.7
 Target=['Open','High','Close']
@@ -38,7 +38,11 @@ p = Main(scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath,1,rea
 #dataset = p.buildAnalyzers()
 #dataset.to_csv(scriptcode + "Scrapped.csv")
 #print(dataset)
-p._buildModels()
+while(True):
+    try:
+        p._buildModels()
+    except:
+        print("Exception occured but continuing....")
 #p._forecast_data(modelpath,"LSTM")
 
 

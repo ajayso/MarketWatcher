@@ -16,10 +16,16 @@ from tensorflow.keras.layers import LeakyReLU
 from logger import logger
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
+
+#Monitoring 
+from monitoring.Manager import MLLogger
+
+
 #from DataProcessor import DataProcessor
 class ModelBuilder:
 	def Trainer(self,token,data,Threshold,target,Corr_Thresh,timesteps):
 
+		
 		#data = DataProcessor(dataframe,Threshold,target,Corr_Thresh)
 		trainin_limit = 1
 

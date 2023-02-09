@@ -63,7 +63,7 @@ class Main:
                         print(df.columns)
                         self.analyzed_data= df
 
-                    #df = df[["Open","High","Close"]]
+                    df = df[["Open","High","Close"]]
                     data = df
                     self.analyzed_data= df
                     print("Size of the dataset {}",format(df.shape))

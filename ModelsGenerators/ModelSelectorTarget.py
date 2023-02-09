@@ -35,7 +35,10 @@ from pprint import pprint
 
 #Monitoring on NR 
 import newrelic.agent
+from monitoring.Manager import MLLogger
+newrelic.agent.initialize('newrelic.ini', 'staging')
 application = newrelic.agent.application()
+
 
 """
 Appended Models : LSTM , CNN , GAN with LSTM Generator.
@@ -145,6 +148,10 @@ class xModel:
                 )
                 #self.callbacks = [earlystopping,lr,reduce_lr,csv_log,checkpoint]
                 self.callbacks = [earlystopping,reduce_lr]
+
+                
+                
+
         @newrelic.agent.background_task(name='xModel-CNNCreate', group='Task')       
         def CNN(self,):
                 CNN = Sequential()
@@ -172,19 +179,39 @@ class xModel:
                 LSTM.add(Dropout(0.4))
                 LSTM.compile(optimizer='adadelta',loss="mean_absolute_error",metrics=['accuracy'])
                 self.model = LSTM
+
         @newrelic.agent.background_task(name='xModel-TrainModel', group='Task')  
         def train(self,X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,sc_predict,
                 epochs=500,batch_size=32, verbose=1,
                 lastbatch=None,
                 sourceColumns=None
                 ):
+
+                #ML Monitoring
+                ml_logger = MLLogger()
+                insert_key = self.name
+                metadata = {"environment": "docker", "dataset": self.script_code}
+                ml_logger.register_Model(
+                        insert_key,
+                        self.name,
+                        metadata,
+                        sourceColumns ,
+                        self.targetfeatures,
+                        "numeric",
+                        "1.0"
+                )
+                
+                #ml_logger.record_interface_data(X_train,Y_train)
+
                 history = self.model.fit(X_train,Y_train,
                 validation_data=(X_test,Y_test),
                 epochs=500,batch_size=32,verbose=1,
                 callbacks=self.callbacks)
                 #X_val = X_test[1:7,]
                 #Y_val = Y_test[7,]
-
+                #ml_logger.drift(X_train,X_test,Y_train,Y_test)
+                acc= history.history["accuracy"]
+                ml_logger.record_metrics(acc)
                 Model_Array[self.name]= self.model.evaluate(X_test,Y_test)
                 modelList.append(PersistModel(self.name,self.model))
                 #pX = self.model.predict(X_val)
