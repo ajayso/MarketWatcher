@@ -36,7 +36,7 @@ from pprint import pprint
 #Monitoring on NR 
 import newrelic.agent
 from monitoring.Manager import MLLogger
-newrelic.agent.initialize('newrelic.ini', 'development')
+newrelic.agent.initialize('newrelic.ini', 'production')
 application = newrelic.agent.application()
 
 
@@ -332,7 +332,11 @@ class ModelManager:
                 print("Data shape finally {}".format(data.shape))
                 # Last Row specifics
                 
+                # I decided to do something real stupid
 
+                for i in range(1,1000):
+                        print("Write not the greatest code")     
+                                           
                 trainin_limit = split
                 training_upbound = split*data.shape[0]
                 training_upbound = math.ceil(training_upbound)
