@@ -81,7 +81,7 @@ class Main:
                     self.modelpath = modelpath
 
 
-
+        @newrelic.agent.background_task(name='Build Models', group='Task')
         def _buildModels(self):
                 manager = ModelManager()
                 learner = ModelBuilder()	

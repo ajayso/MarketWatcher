@@ -36,7 +36,7 @@ from pprint import pprint
 #Monitoring on NR 
 import newrelic.agent
 from monitoring.Manager import MLLogger
-newrelic.agent.initialize('newrelic.ini', 'staging')
+newrelic.agent.initialize('newrelic.ini', 'development')
 application = newrelic.agent.application()
 
 
@@ -146,8 +146,8 @@ class xModel:
                         save_weights_only=True,
                         verbose=1
                 )
-                #self.callbacks = [earlystopping,lr,reduce_lr,csv_log,checkpoint]
-                self.callbacks = [reduce_lr]
+                self.callbacks = [earlystopping,lr,reduce_lr,csv_log,checkpoint]
+                #self.callbacks = [reduce_lr]
 
                 
                 
@@ -235,7 +235,7 @@ class xModel:
                 dfPredicted.to_csv("{}-{}-Data.csv".format(self.script_code, self.name))
                 print(self.script_code)
 
-                forecast_steps=1 
+                forecast_steps=10 
                 # #Prediction of Last Batch
                 #dataframe for the original data
                 total_features = len(sourceColumns) 
@@ -315,7 +315,7 @@ class ModelManager:
 
         def TrainMode(self):
                 print("Train Model---")
-        
+        @newrelic.agent.background_task(name='Forecast', group='Task')
         def Forecast(self,scriptcode,data,lookback,name,modelpath=None):
                 xmodel = xModel(script_code=scriptcode,model_name=name,
                 lookback=lookback,features="", target=0,monitor="",targetfeatures="")
@@ -329,7 +329,7 @@ class ModelManager:
         def Selector(self,scriptcode,data,Threshold,target,Corr_Thresh,split,timesteps,modelpath):
                 target=["Close"]
                 #data = DataProcessor(dataframe,Threshold,target,Corr_Thresh)
-                print("Data shape {}".format(data.shape))
+                print("Data shape finally {}".format(data.shape))
                 # Last Row specifics
                 
 
@@ -346,9 +346,9 @@ class ModelManager:
                 features = data.shape[1]
                 
                 lastiteration = data.tail(lookback)
-                print("Look here-------")
+           
                 print(lastiteration)
-                print("last iteration testing")
+      
                 totalrows = data.shape[0]
                 print(data.shape)
                 data = data[0:totalrows-lookback]

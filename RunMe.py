@@ -38,14 +38,13 @@ p = Main(scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath,0,rea
 #dataset = p.buildAnalyzers()
 #dataset.to_csv(scriptcode + "Scrapped.csv")
 #print(dataset)
-p._buildModels()
-
-#while(True):
-#try:
 
 
-#except:
-print("Exception occured but continuing....")
+while(True):
+    try:
+        p._buildModels()
+    except:
+        print("Exception occured but continuing....")
 #p._forecast_data(modelpath,"LSTM")
 
 
