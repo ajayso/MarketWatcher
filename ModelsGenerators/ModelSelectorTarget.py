@@ -117,13 +117,13 @@ class xModel:
         def __init__(self,script_code,model_name, lookback,features, target,monitor,targetfeatures):
                 self.lookback = lookback
                 self.features = features
-                self.target = len(target)
+                self.target = target #len(target)
                 self.name =model_name
                 self.targetfeatures = targetfeatures
                 self.script_code = script_code
                 earlystopping = EarlyStopping(
                 monitor=monitor, 
-                patience=0.1, 
+                patience=0.01, 
                 verbose=1, 
                 mode='min'
                 )
@@ -147,7 +147,7 @@ class xModel:
                         verbose=1
                 )
                 #self.callbacks = [earlystopping,lr,reduce_lr,csv_log,checkpoint]
-                self.callbacks = [earlystopping,reduce_lr]
+                self.callbacks = [reduce_lr]
 
                 
                 
@@ -171,13 +171,15 @@ class xModel:
                 biistm = layers.Bidirectional(layers.LSTM(units = 200,input_shape=(self.lookback,self.features)))
                 LSTM = Sequential()
                 #LSTM.add((layers.LSTM(units = 200,input_shape=(self.lookback,self.features))))
-                LSTM.add(layers.Bidirectional(layers.LSTM(units = 200,input_shape=(self.lookback,self.features))))
+                LSTM.add(layers.Bidirectional(layers.LSTM(units = 256,input_shape=(self.lookback,self.features))))
                 #LSTM.add(layers.Bidirectional(layers.LSTM(10)))
                 LSTM.add(Dense(50))
                 LSTM.add(Dropout(0.5))
                 LSTM.add(Dense(units=self.target , activation = 'relu'))
                 LSTM.add(Dropout(0.4))
                 LSTM.compile(optimizer='adadelta',loss="mean_absolute_error",metrics=['accuracy'])
+                
+                
                 self.model = LSTM
 
         @newrelic.agent.background_task(name='xModel-TrainModel', group='Task')  
@@ -207,6 +209,7 @@ class xModel:
                 validation_data=(X_test,Y_test),
                 epochs=500,batch_size=32,verbose=1,
                 callbacks=self.callbacks)
+                print(self.model.summary())
                 #X_val = X_test[1:7,]
                 #Y_val = Y_test[7,]
                 #ml_logger.drift(X_train,X_test,Y_train,Y_test)
@@ -223,13 +226,16 @@ class xModel:
                 print(predicted_data)
                 print(predicted_data.shape)
                 original_data = sc_predict.inverse_transform(predicted_data)
+                print("Predictions------Data")
+                print(original_data)
+                print("Predictions------Data")
                 print(original_data.shape)
                 print(self.targetfeatures)
                 dfPredicted = pd.DataFrame(original_data, columns = [self.targetfeatures])
                 dfPredicted.to_csv("{}-{}-Data.csv".format(self.script_code, self.name))
                 print(self.script_code)
 
-                forecast_steps=30 
+                forecast_steps=1 
                 # #Prediction of Last Batch
                 #dataframe for the original data
                 total_features = len(sourceColumns) 
@@ -311,16 +317,17 @@ class ModelManager:
                 print("Train Model---")
         
         def Forecast(self,scriptcode,data,lookback,name,modelpath=None):
-                #xmodel = xModel(script_code=scriptcode,model_name=name,
-                #lookback=lookback,features="", target=0,monitor="",targetfeatures="")
-                forecast_data = xModel.Forecast(X=data,script_code=scriptcode,name=name)
-                print(forecast_data)
+                xmodel = xModel(script_code=scriptcode,model_name=name,
+                lookback=lookback,features="", target=0,monitor="",targetfeatures="")
+                #forecast_data = xModel.Forecast(X=data,script_code=scriptcode,name=name,
+                #targetfeatures=self.targetfeatures)
+                #print(forecast_data)
 
 
         
         @newrelic.agent.background_task(name='ModelManager-Selector', group='Task')  
         def Selector(self,scriptcode,data,Threshold,target,Corr_Thresh,split,timesteps,modelpath):
-
+                target=["Close"]
                 #data = DataProcessor(dataframe,Threshold,target,Corr_Thresh)
                 print("Data shape {}".format(data.shape))
                 # Last Row specifics
@@ -339,6 +346,8 @@ class ModelManager:
                 features = data.shape[1]
                 
                 lastiteration = data.tail(lookback)
+                print("Look here-------")
+                print(lastiteration)
                 print("last iteration testing")
                 totalrows = data.shape[0]
                 print(data.shape)
@@ -355,7 +364,7 @@ class ModelManager:
                 sc = MinMaxScaler(feature_range=(0,1)).fit(training_data)
                 sc_predict = MinMaxScaler(feature_range=(0,1))
                 training_data_scaled = sc.fit_transform(training_data)
-                training_target_scaled = sc_predict.fit_transform(training_data.iloc[:,target_col_indices].values.reshape(-1,1))
+                training_target_scaled = sc_predict.fit_transform(training_data.iloc[:,target_col_indices]) #.values.reshape(-1,1))
                 print("Training target scaled shape {}".format(training_target_scaled.shape))
                 
                 print("Training data shape {}".format(training_data.shape))
@@ -388,7 +397,11 @@ class ModelManager:
 
         
                 print("LSTM is being trained and tested now\n")
+                target = Y_train.shape[1]
+                print("Target is {}".format(target))
+                
                 xmodel = xModel(script_code = scriptcode,lookback=lookback,features=features,target=target,monitor="val_loss",model_name="LSTM",targetfeatures=self.targetColumns)
+                
                 #xmodel.PCA_n(data)
                 xmodel.LSTM()
                 xmodel.train(X_train,Y_train,X_test,Y_test,Model_Array,modelList,sc,sc_predict,

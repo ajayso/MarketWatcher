@@ -47,9 +47,9 @@ class Main:
                         # Just forward the read data
                     if (read_from_file==0):
                         if (index==0):
-                            df= get_history(symbol=scriptcode, start=date(2020,1,1), end=date.today())
+                            df= get_history(symbol=scriptcode, start=date(2018,1,1), end=date.today())
                             df = df.rename(columns = {"No. of Shares": "Volume"})
-                            df = df.rename(columns = {"Last": "Adj Close"})
+                            df = df.rename(columns = {"Last": "O Adj Close"})
                             df = df.dropna(axis=0)
                         else:
                             pull = Puller("Y")
@@ -63,7 +63,9 @@ class Main:
                         print(df.columns)
                         self.analyzed_data= df
 
-                    df = df[["Open","High","Close"]]
+                    #df = df[["Open","High","Close"]]
+                    print(df.columns)
+                    #df = df.drop(["Symbol","Series"], axis='columns')
                     data = df
                     self.analyzed_data= df
                     print("Size of the dataset {}",format(df.shape))
@@ -71,7 +73,8 @@ class Main:
                     self.modelpath = modelpath
                 else:
                     df = pd.read_csv("Forecast-"+ scriptcode + ".csv")
-                    df = df.drop("Date", axis='columns')
+                    #df = df.drop(["Date" ,"Symbol","Series"], axis='columns')
+                    
                     data = df
                     print("Size of the forecasted--dataset {}",format(data.shape))
                     self.data = data

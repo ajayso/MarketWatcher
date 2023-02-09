@@ -57,6 +57,7 @@ class CommodityAnalyzer:
             crudeoil = crudeoil.rename(columns={"Low":indicator + "_Low","High":indicator + "_High","Open":indicator + "_Open","Close":indicator + "_Close","Last":indicator + "_Last","Volume":indicator + "_Volume"})
             #crudeoil = quandl.get("OPEC/ORB")
             #crudeoil = pd.DataFrame(crudeoil, columns = ["Index Value"])
+            print(self.data.columns)
             crudeoil_df = crudeoil.join(self.data,how='inner')#inner join with the dataframe
             crudeoil_df = crudeoil_df.dropna(axis=0)#dropping NaNs
             crudeoil_df_corr = crudeoil_df.corr()#Correlation Matrix
