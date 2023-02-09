@@ -1,0 +1,1 @@
+newrelic-admin run-python RunMe.py

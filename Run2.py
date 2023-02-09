@@ -1,19 +1,13 @@
-# Imports
-#Importing dependencies 
+# MarketWatcher Main Start
+# Generic Imports
 import pandas as pd
 import numpy as np
-import talib as ta
-import math
-import matplotlib.pyplot as plt
 import os
-plt.rcParams["figure.figsize"] = (20,10) #change this if you want to reduce the plot images
 import locale
 from datetime import date
 from locale import atof
 locale.setlocale(locale.LC_NUMERIC, '') 
-#Quandl dependency with API key
-import quandl
-quandl.ApiConfig.api_key = "HHCBs8CFrnTXyu__s7xv"
+
 
 # Analyzer Imports
 import sys
@@ -32,7 +26,8 @@ from ModelsGenerators.LearnerTarget import ModelBuilder
 
 from Program import Main
 
-scriptcode = "BOM500325"
+scriptcode = "RELIANCE"
+
 Threshold=0.7
 Corr_Thresh=0.7
 Target='Close'

@@ -1,20 +1,13 @@
-# Imports
-#Importing dependencies 
+#Generic Imports
 import pandas as pd
 import numpy as np
-import talib as ta
 import math
-import matplotlib.pyplot as plt
-plt.rcParams["figure.figsize"] = (20,10) #change this if you want to reduce the plot images
 import locale
 from datetime import date
 from locale import atof
 locale.setlocale(locale.LC_NUMERIC, '') 
-#Quandl dependency with API key
-import quandl
 from nsepy import get_history
-quandl.ApiConfig.api_key = "V8v63CRpQLfH8YKfsAmu"
-api_key = "V8v63CRpQLfH8YKfsAmu"
+
 # Analyzer Imports
 import sys
 sys.path.insert(0,'\Frameworks/')
@@ -30,40 +23,75 @@ sys.path.insert(0, '\ModelsGenerators')
 from ModelsGenerators.ModelSelectorTarget import ModelManager
 from ModelsGenerators.LearnerTarget import ModelBuilder
 
-class Main:
+# support for index pull
+import yfinance as yf
+sys.path.insert(0,'\rutils/')
+from rutils.YahooData import Puller
 
-        def __init__(self,scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath):
+#Monitoring on NR 
+import newrelic.agent
+application = newrelic.agent.application()
+
+class Main:
+        
+        #@newrelic.agent.background_task(name='Main-init', group='Task')
+        def __init__(self,scriptcode,Threshold,Corr_Thresh,Target,split,timesteps,modelpath, index=0,read_from_file=0,forecast=0):
+                newrelic.agent.set_transaction_name("Main_Init", group=None, priority=None)
                 self.Threshold = Threshold
                 self.Corr_Thresh=Corr_Thresh
                 self.Target=Target
                 self.split= split
                 self.timesteps=timesteps
                 self.scriptcode = scriptcode
-                quandl.ApiConfig.api_key = "V8v63CRpQLfH8YKfsAmu"
-                #df = quandl.get("NSE/" + scriptcode,api_key =api_key)
-                #data = get_history(symbol=scriptcode,
-                #   start=date(2007,1,1), 
-                #   end=date.today())
-                #data.to_csv(scriptcode + "--DataOriginal.csv")
-                #df = pd.read_csv(scriptcode + "--DataOriginal.csv")
-                df = quandl.get("BSE/" + scriptcode,  start_date="2010-07-01", end_date=date.today(),api_key =api_key)
-                df = df.rename(columns = {"No. of Shares": "Volume"})
-                df = df.rename(columns = {"Last": "Adj Close"})
-                df = df.dropna(axis=0)
-                df.to_csv(scriptcode + "--Original.csv")
-                data =df [['Open', 'High', 'Low', 'Close', 'WAP', 'Volume', "No. of Trades"]] #,'VWAP']]
-               
-                print("Size of the dataset {}",format(df.shape))
-                self.data = data
-                self.modelpath = modelpath
+                if (forecast==0):
+                        # Just forward the read data
+                    if (read_from_file==0):
+                        if (index==0):
+                            df= get_history(symbol=scriptcode, start=date(2018,1,1), end=date.today())
+                            df = df.rename(columns = {"No. of Shares": "Volume"})
+                            df = df.rename(columns = {"Last": "O Adj Close"})
+                            df = df.dropna(axis=0)
+                        else:
+                            pull = Puller("Y")
+                            df = pull.get_history(scriptcode,"^"+scriptcode)
+                            str_replace = scriptcode+"_"
+                            df = df.rename(columns=lambda x: x.replace(str_replace, ''))
+                            print(df.columns)
+                    else:
+                        df = pd.read_csv(scriptcode + "Scrapped.csv")
+                        df = df.drop("Date", axis='columns')
+                        print(df.columns)
+                        self.analyzed_data= df
 
+                    #df = df[["Open","High","Close"]]
+                    print(df.columns)
+                    #df = df.drop(["Symbol","Series"], axis='columns')
+                    data = df
+                    self.analyzed_data= df
+                    print("Size of the dataset {}",format(df.shape))
+                    self.data = data
+                    self.modelpath = modelpath
+                else:
+                    df = pd.read_csv("Forecast-"+ scriptcode + ".csv")
+                    #df = df.drop(["Date" ,"Symbol","Series"], axis='columns')
+                    
+                    data = df
+                    print("Size of the forecasted--dataset {}",format(data.shape))
+                    self.data = data
+                    self.modelpath = modelpath
+
+
+        @newrelic.agent.background_task(name='Build Models', group='Task')
         def _buildModels(self):
                 manager = ModelManager()
                 learner = ModelBuilder()	
                 token = manager.Selector(self.scriptcode,self.analyzed_data,self.Threshold,self.Target,self.Corr_Thresh,self.split,self.timesteps,self.modelpath)
                 self.model = learner.Trainer(token,self.analyzed_data,self.Threshold,self.Target,self.Corr_Thresh,self.timesteps)
                 print("The best model is " + token)
-                
+
+        def _forecast_data(self,modelpath,name):
+                manager = ModelManager()
+                manager.Forecast(self.scriptcode,self.data ,7,name,modelpath)
 
         def buildAnalyzers(self):
                 #self.Threshold=0.8

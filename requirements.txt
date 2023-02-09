@@ -60,3 +60,5 @@ Werkzeug==2.1.2
 wrapt==1.14.1
 yfinance==0.1.70
 nsepy
+newrelic
+ml_performance_monitoring
